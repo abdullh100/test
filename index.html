@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>نظام إدارة الموظفين المتكامل</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .employee-card {
+            transition: transform 0.2s;
+        }
+        .employee-card:hover {
+            transform: translateY(-5px);
+        }
+        .badge-custom {
+            font-size: 0.9em;
+            padding: 0.5em 0.75em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <h1 class="display-4 text-primary">
+                    <i class="bi bi-people-fill"></i> نظام إدارة الموظفين
+                </h1>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-8 mb-3">
+                <div class="input-group">
+                    <input type="text" id="searchInput" class="form-control" placeholder="ابحث عن موظف..." oninput="searchEmployee()">
+                    <button class="btn btn-outline-primary" type="button">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4 text-end d-flex gap-2">
+                <button class="btn btn-outline-secondary w-100" onclick="exportData()">
+                    <i class="bi bi-download"></i> تصدير البيانات
+                </button>
+                <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#employeeModal">
+                    <i class="bi bi-person-plus"></i> إضافة موظف جديد
+                </button>
+            </div>
+        </div>
+
+        <div class="row" id="employeesContainer"></div>
+
+        <div class="modal fade" id="employeeModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalTitle">بيانات الموظف</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="employeeForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">الاسم الكامل</label>
+                                        <input type="text" class="form-control" id="empName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">الراتب الأساسي</label>
+                                        <input type="number" class="form-control" id="basicSalary" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">تاريخ التعيين</label>
+                                        <input type="date" class="form-control" id="hireDate" required>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">إضافة سلفية</label>
+                                        <div class="input-group mb-1">
+                                            <input type="number" class="form-control" id="advanceAmount">
+                                            <input type="date" class="form-control" id="advanceDate">
+                                            <input type="text" class="form-control" id="advanceReason" placeholder="السبب">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="addAdvance()">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">إضافة خصم</label>
+                                        <div class="input-group mb-1">
+                                            <input type="number" class="form-control" id="deductionAmount">
+                                            <input type="date" class="form-control" id="deductionDate">
+                                            <input type="text" class="form-control" id="deductionReason" placeholder="السبب">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="addDeduction()">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <h6>السلفيات المضافة:</h6>
+                                    <ul class="list-group" id="advancesList"></ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>الخصومات المضافة:</h6>
+                                    <ul class="list-group" id="deductionsList"></ul>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="button" class="btn btn-primary" onclick="saveEmployee()">حفظ البيانات</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let employees = JSON.parse(localStorage.getItem('employees')) || [];
+    let currentEmployee = null;
+
+    function displayEmployees(list = employees) {
+        const container = document.getElementById('employeesContainer');
+        container.innerHTML = list.map(emp => `
+            <div class="col-md-4 mb-4">
+                <div class="card employee-card">
+                    <div class="card-body">
+                        <h5 class="card-title">${emp.name}</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="badge bg-primary badge-custom">الراتب: ${emp.basicSalary}</span>
+                            <span class="badge bg-success badge-custom">الصافي: ${calculateNetSalary(emp)}</span>
+                        </div>
+                        <small class="text-muted">تاريخ التعيين: ${emp.hireDate}</small>
+                        <div class="mt-2 d-flex justify-content-between">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal(${emp.id})">تعديل</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${emp.id})">حذف</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openEditModal(id) {
+        currentEmployee = employees.find(emp => emp.id === id);
+        document.getElementById('empName').value = currentEmployee.name;
+        document.getElementById('basicSalary').value = currentEmployee.basicSalary;
+        document.getElementById('hireDate').value = currentEmployee.hireDate;
+        updateLists();
+        const modal = new bootstrap.Modal(document.getElementById('employeeModal'));
+        modal.show();
+    }
+
+    function addAdvance() {
+        const amount = document.getElementById('advanceAmount').value;
+        const date = document.getElementById('advanceDate').value;
+        const reason = document.getElementById('advanceReason').value || 'سلفية عادية';
+        if (amount && date) {
+            currentEmployee.advances.push({ amount: parseFloat(amount), date, reason });
+            updateLists();
+        }
+    }
+
+    function addDeduction() {
+        const amount = document.getElementById('deductionAmount').value;
+        const date = document.getElementById('deductionDate').value;
+        const reason = document.getElementById('deductionReason').value || 'خصم عادي';
+        if (amount && date) {
+            currentEmployee.deductions.push({ amount: parseFloat(amount), date, reason });
+            updateLists();
+        }
+    }
+
+    function updateLists() {
+        document.getElementById('advancesList').innerHTML = currentEmployee.advances.map((a, i) => `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                ${a.amount} (${a.date}) - ${a.reason}
+                <button class="btn btn-sm btn-danger" onclick="removeAdvance(${i})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </li>
+        `).join('');
+        document.getElementById('deductionsList').innerHTML = currentEmployee.deductions.map((d, i) => `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                ${d.amount} (${d.date}) - ${d.reason}
+                <button class="btn btn-sm btn-danger" onclick="removeDeduction(${i})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </li>
+        `).join('');
+    }
+
+    function removeAdvance(index) {
+        currentEmployee.advances.splice(index, 1);
+        updateLists();
+    }
+
+    function removeDeduction(index) {
+        currentEmployee.deductions.splice(index, 1);
+        updateLists();
+    }
+
+    function calculateNetSalary(emp) {
+        const totalAdvances = emp.advances.reduce((sum, a) => sum + a.amount, 0);
+        const totalDeductions = emp.deductions.reduce((sum, d) => sum + d.amount, 0);
+        return emp.basicSalary - totalAdvances - totalDeductions;
+    }
+
+    function saveEmployee() {
+        if (!currentEmployee) {
+            currentEmployee = {
+                id: Date.now(),
+                name: document.getElementById('empName').value,
+                basicSalary: parseFloat(document.getElementById('basicSalary').value),
+                hireDate: document.getElementById('hireDate').value,
+                advances: [],
+                deductions: []
+            };
+            employees.push(currentEmployee);
+        } else {
+            currentEmployee.name = document.getElementById('empName').value;
+            currentEmployee.basicSalary = parseFloat(document.getElementById('basicSalary').value);
+            currentEmployee.hireDate = document.getElementById('hireDate').value;
+        }
+
+        localStorage.setItem('employees', JSON.stringify(employees));
+        displayEmployees();
+        bootstrap.Modal.getInstance(document.getElementById('employeeModal')).hide();
+        currentEmployee = null;
+    }
+
+    function deleteEmployee(id) {
+        employees = employees.filter(emp => emp.id !== id);
+        localStorage.setItem('employees', JSON.stringify(employees));
+        displayEmployees();
+    }
+
+    function searchEmployee() {
+        const searchValue = document.getElementById('searchInput').value.trim();
+        const filtered = employees.filter(emp => emp.name.includes(searchValue));
+        displayEmployees(filtered);
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(employees));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", "employees_data.json");
+        dlAnchor.click();
+    }
+
+    displayEmployees();
+</script>
+</body>
+</html>
